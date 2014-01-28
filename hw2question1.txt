@@ -1,0 +1,35 @@
+Name: Eric Pham
+UID:  303 787 024
+
+Problem 1: Come up with a non-recursive parallel algorithm to compute all prefix sums.
+
+Input:  Array of integers X[0:N]
+Output: Array of prefix sums S[0:N]
+
+  begin
+    for i=0 to N pardo
+      S[i] := X[i]
+    
+    for d=0 to log(n)-1 do
+      for i=0 to n-1 by 2^(d+1) pardo
+        S[i + 2^(d+1) := X[i + 2^d - 1] + X[i + 2^(d+1) - 1]
+        
+    for d=log(n)-1 downto 0 do
+      for i=0 to n-1 by 2^(d+1) pardo
+        tmp                := S[i + 2^d -1]
+        S[i + 2^d - 1]     := S[i + 2^(d+1) - 1]
+        S[i + 2^(d+1) - 1] := tmp + S[i + 2^(d+1) - 1]
+  end
+  
+This prefix sums computation produces a binary tree in which we first produce by
+summing adjacent elements to form partial prefix sums. Once we have constructed the
+initial tree, we will traverse back down and use the partial prefix sums to compute
+any remaining prefix sums. After this algorithm finishes, all prefix sums except the
+last one will be in the array, shifted one to the right. This means we need to shift
+elements one left and insert the final value.
+
+Assuming we have O(n) processors, we can compute prefix sums in O(logn) time. Each loop
+has O(logn) outer iterations which must be performed sequentially. However, each iteration
+can be performed in parallel and in constant time since the inner iterations perform
+constant work. Therefore, the total time complexity is O(logn). Furthermore, since we
+assumed we had O(n) processors, the total work performed is O(nlogn).

@@ -1,0 +1,81 @@
+Name: Eric Pham
+UID:  303 787 024
+
+Questions related to Problem 2:
+
+1) Record the total execution time of the program (hw2a) using the UNIX time utility:
+
+      1   Thread:  22.288u  0.022s  0:56.01  38.8%
+      2  Threads:  22.637u  0.028s  0:58.85  38.4%
+      4  Threads:  23.020u  0.030s  0:56.73  40.6%
+      8  Threads:  24.743u  0.031s  0:51.62  47.9%
+      16 Threads:  44.233u  0.058s  0:48.46  91.3%
+      
+2) Record the total execution time of the program (hw2b) using dynamic schedule with chunk size of 1:
+
+      1   Thread:  22.611u  0.024s  1:10.73  31.9%
+      2  Threads:  23.380u  0.027s  0:59.71  39.1%
+      4  Threads:  23.705u  0.068s  0:47.75  49.7%
+      8  Threads:  26.104u  0.184s  0:45.78  57.4%
+      16 Threads:  49.053u  1.486s  0:41.09  122.9%
+      
+  In general, as we increase the number of threads, the trend shows that dynamic scheduling gives up a
+  significant speed up thereby reducing the total execution time (in the third column). Dynamic scheduling
+  improves this parallel algorithm's performance by rarely allowing threads to sit idle (i.e. few to no 
+  resources go wasted). 
+  
+  When we used static scheduling originally, threads were assigned a fixed number of iterations. Threads 
+  assigned iterations the final iterations have significantly more work to do compared to threads executing
+  the initial iterations (due to the redundancy of the is_prime helper function). As a result, the initial
+  iterations are computed quickly and must wait a long time for the final iterations to finish. During this waiting
+  period, the threads which already finished are sitting idly, although there is still more work to be done.
+  However, in the dynamic scheduling scheme, once the early threads finish, they are immediately assigned
+  more work. Therefore, the entire process finishes more quickly with dynamic scheduling since idle time is
+  minimized.
+      
+  Record the total execution time of the program (hw2b) using dynamic schedule with 16 threads:
+
+      Chunk Size  2:  48.051u  1.523s  0:29.98  165.3%
+      Chunk Size  4:  47.875u  1.488s  0:32.04  154.0%
+      Chunk Size  8:  47.809u  1.476s  0:23.69  207.9%
+      Chunk Size 16:  47.610u  1.610s  0:24.26  202.8%
+      Chunk Size 32:  47.745u  1.478s  0:21.94  224.2%
+      
+  As we increase the chunk size, we see a significant improvement in performance - almost 2x speed up! I suspect some 
+  contributions to the improvement are (1) the chunk size decreases exponentially with each successive assignment and
+  (2) the linear time complexity of the is_prime() helper function. These two factors balance the load among the threads
+  so that the speed up is possible. When threads are forked initially, the receive roughly the same size workload as
+  the chunk specifies. As threads finish, they are re-assigned work in a decreasing chunk size. However, due to the linear
+  time complexity of of the helper function, the re-assigned work has roughly equal volume to a previous iteration. Since
+  the volume of the workload per thread remains approximately constant, threads are more likely to finish at the same time
+  as each other. Essentially, this means that nearing the end of the algorithm, it's likely the case that no threads are
+  waiting idly to finish. Furthermore, having a large chunk size to start normalizes the amount of work assigned per thread.
+  A smaller chunk indicates that initially, threads assigned later iterations will have a greater volume of work to complete
+  than threads assigned earlier iterations. Therefore, it's more likely there will be a load imbalance when using smaller
+  chunk sizes compared to larger chunk sizes.
+  
+3) There are several synchronization issues to be aware of when two threads want to access the shared resource, especially
+   when on or both threads want to write to that resource. Consider the following example:
+   
+   Thread 1:       Thread 2:
+   
+   x = 1;          y = 1;
+   print y;        print x;
+   
+   First, let's assume that x and y are initialized to 0. In this example, we are concerned with the final values for the
+   shared resources x and y. The problem is inherent in the unpredictable scheduling between the threads. Suppose Thread 1 
+   completely finishes before Thread 2 starts; although the final values of x and y are both 1, Thread 1 will print y = 0 and
+   Thread 2 will print x = 1. This result is inconsistent with our expectations due to the nature of our memory model, which
+   allows each thread to have a separate view or variables despite the variables being shared. Therefore, an update to a variable
+   to one thread may not be immediately visible to another thread. Thus, we have a potential hazard of non-atomicity when
+   two threads are trying to access shared resources.
+   
+   Furthermore, to resolve this critical issue, we can explcitly inform threads that a shared variable has been modified by
+   using OpenMP's flush directive, which writes a thread's local view of a shared resource to memory and allows other threads
+   to update their views accordingly.
+   
+   During development, I was aware of this synchronization issue and was concerned particularly with the Producer thread overwriting
+   space not yet processed by the Consumer thread; this would result in less points sampled in the approximation of PI and thereby
+   a less accurate estimation. To resolve this issue, I continually flushed to circular buffer in both threads so both parties
+   would have consistent views of the data. Unfortunately, flushing often hindered the performance of my application since both
+   threads had to spend significant time waiting for the data to be updated.
